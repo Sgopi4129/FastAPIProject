@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+
+    environment {
+        // Path to your Maven tool defined in Jenkins
+        MAVEN_HOME = tool name: 'Maven', type: 'hudson.tasks.Maven$MavenInstallation'
+        // SonarQube environment
+        SONARQUBE_SERVER = 'SonarQubeServerName'  // Replace with your SonarQube server name
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/your-repo/maven-project.git'
+            }
+        }
+
+        stage('Build with Maven') {
+            steps {
+                sh "${MAVEN_HOME}/bin/mvn clean install"
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQubeServerName') { // Ensure this matches the name in Jenkins settings
+                    sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build completed successfully!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
